@@ -22,7 +22,7 @@ src/
 
 ## API 연동 위치
 
-### 1. 기준 안무 데이터 (실시간 담당 팀원)
+### 1. 기준 안무 데이터 (실시간 담당 주영)
 `src/hooks/usePoseData.js`
 ```js
 // 이 주소를 팀원 API 주소로 교체
@@ -31,7 +31,7 @@ const response = await fetch(`http://localhost:8000/api/pose/${songId}`);
 setReferenceData(data.landmarks);
 ```
 
-### 2. 실시간 유사도 점수 (실시간 담당 팀원)
+### 2. 실시간 유사도 점수 (실시간 담당 주영)
 `src/components/WebcamCapture.jsx`
 ```js
 // score, jointScores 상태값에 팀원 API 결과 넣으면 됨
@@ -39,7 +39,7 @@ const [score, setScore] = useState(null);
 const [jointScores, setJointScores] = useState([]);
 ```
 
-### 3. DTW 종합 리포트 (DTW 담당 팀원)
+### 3. DTW 종합 리포트 (DTW 담당 효리)
 `src/components/ReportView.jsx`
 ```js
 // 이 주소를 팀원 API 주소로 교체
