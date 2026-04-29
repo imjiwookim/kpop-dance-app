@@ -5,9 +5,9 @@
 }
 
 body {
-  background: #111;
-  color: white;
-  font-family: sans-serif;
+  background: #fdf6f0;
+  color: #3b1f6e;
+  font-family: 'Segoe UI', sans-serif;
   width: 100%;
   overflow-x: hidden;
 }
@@ -15,4 +15,22 @@ body {
 #root {
   width: 100%;
   min-height: 100vh;
+}
+
+/* 스크롤바 */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #fdf6f0;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #e9d5ff;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a855f7;
 }
