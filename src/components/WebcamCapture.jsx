@@ -1,16 +1,99 @@
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState, useCallback } from "react";
 import { useMediaPipe } from "../hooks/useMediaPipe";
 
-function WebcamCapture({ songId }) {
+const BASE_URL = "http://localhost:8000";
+const WS_URL = "ws://localhost:8000";
+const WINDOW_SIZE = 15;
+
+function WebcamCapture({ song }) {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const referenceVideoRef = useRef(null);
+  const wsRef = useRef(null);
+  const windowBufferRef = useRef([]);
+  const frameIdxRef = useRef(0);
+
   const [error, setError] = useState(null);
   const [score, setScore] = useState(null);
-  const [jointScores, setJointScores] = useState([]);
+  const [parts, setParts] = useState(null);
+  const [videoUrl, setVideoUrl] = useState(null);
+  const [isReady, setIsReady] = useState(false);
 
   const { landmarks } = useMediaPipe(videoRef, canvasRef);
 
+  // 1. 댄스 준비 API 호출
+  useEffect(() => {
+    if (!song?.dance_id) return;
+
+    const readyDance = async () => {
+      try {
+        const response = await fetch(`${BASE_URL}/dances/${song.dance_id}/ready`);
+        if (!response.ok) throw new Error("댄스 준비 실패");
+        const data = await response.json();
+        setVideoUrl(`${BASE_URL}${data.video_url}`);
+        setIsReady(true);
+      } catch (err) {
+        setError(err.message);
+        console.error(err);
+      }
+    };
+
+    readyDance();
+  }, [song]);
+
+  // 2. WebSocket 연결
+  useEffect(() => {
+    if (!isReady || !song?.dance_id) return;
+
+    const ws = new WebSocket(`${WS_URL}/ws/similarity/${song.dance_id}`);
+    wsRef.current = ws;
+
+    ws.onopen = () => console.log("WebSocket 연결됨");
+
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.similarity !== null) {
+        setScore(Math.round(data.similarity * 100));
+        setParts(data.parts);
+      }
+    };
+
+    ws.onerror = (err) => console.error("WebSocket 오류:", err);
+    ws.onclose = () => console.log("WebSocket 종료");
+
+    return () => ws.close();
+  }, [isReady, song]);
+
+  // 3. 관절 좌표 전송
+  useEffect(() => {
+    if (!landmarks || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
+
+    const currentTime = referenceVideoRef.current?.currentTime ?? 0;
+    const frame = {
+      landmarks: landmarks.map((lm) => ({
+        x: lm.x,
+        y: lm.y,
+        z: lm.z,
+        visibility: lm.visibility,
+      })),
+      timestamp: currentTime,
+      frame_idx: frameIdxRef.current++,
+    };
+
+    windowBufferRef.current.push(frame);
+
+    // window_size만큼 쌓이면 전송
+    if (windowBufferRef.current.length >= WINDOW_SIZE) {
+      const payload = {
+        window: windowBufferRef.current,
+        current_timestamp: currentTime,
+      };
+      wsRef.current.send(JSON.stringify(payload));
+      windowBufferRef.current = [];
+    }
+  }, [landmarks]);
+
+  // 웹캠 시작
   useEffect(() => {
     const startWebcam = async () => {
       try {
@@ -38,11 +121,6 @@ function WebcamCapture({ songId }) {
     return "red";
   };
 
-  const getVideoPath = (id) => {
-    if (id === "love-dive") return "/LoveDive_IVE.mp4";
-    return null;
-  };
-
   return (
     <div style={{ color: "white", padding: "10px 20px" }}>
 
@@ -50,18 +128,40 @@ function WebcamCapture({ songId }) {
 
       {/* 유사도 점수 */}
       {score !== null ? (
-        <p style={{
-          color: getScoreColor(score),
-          fontSize: "28px",
-          fontWeight: "bold",
-          textAlign: "center",
-          margin: "8px 0",
-        }}>
-          유사도: {score}점
-        </p>
+        <div style={{ textAlign: "center", margin: "8px 0" }}>
+          <p style={{
+            color: getScoreColor(score),
+            fontSize: "28px",
+            fontWeight: "bold",
+            margin: 0,
+          }}>
+            유사도: {score}점
+          </p>
+
+          {/* 부위별 점수 */}
+          {parts && (
+            <div style={{ display: "flex", gap: "12px", justifyContent: "center", marginTop: "8px" }}>
+              {Object.entries(parts).map(([part, value]) => (
+                <div key={part} style={{
+                  padding: "4px 10px",
+                  background: getScoreColor(Math.round(value * 100)),
+                  borderRadius: "6px",
+                  fontSize: "12px",
+                  fontWeight: "bold",
+                }}>
+                  {part === "left_arm" ? "왼팔" :
+                   part === "right_arm" ? "오른팔" :
+                   part === "left_leg" ? "왼다리" :
+                   part === "right_leg" ? "오른다리" : part}
+                  : {Math.round(value * 100)}점
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       ) : (
         <p style={{ color: "gray", textAlign: "center", margin: "8px 0" }}>
-          ⏳ 팀원 API 연동 후 점수가 표시됩니다
+          ⏳ 연결 중...
         </p>
       )}
 
@@ -75,7 +175,7 @@ function WebcamCapture({ songId }) {
           </p>
           <video
             ref={referenceVideoRef}
-            src={getVideoPath(songId)}
+            src={videoUrl}
             controls
             autoPlay
             style={{
@@ -126,27 +226,6 @@ function WebcamCapture({ songId }) {
           </div>
         </div>
       </div>
-
-      {/* 관절별 점수 */}
-      {jointScores.length > 0 && (
-        <div style={{ marginTop: "16px" }}>
-          <h3 style={{ textAlign: "center", marginBottom: "8px", fontSize: "14px" }}>관절별 점수</h3>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", justifyContent: "center" }}>
-            {jointScores.map((j) => (
-              <div key={j.index} style={{
-                padding: "4px 8px",
-                background: getScoreColor(j.score),
-                borderRadius: "6px",
-                color: "white",
-                fontSize: "11px",
-                fontWeight: "bold",
-              }}>
-                {j.index}번: {j.score}점
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

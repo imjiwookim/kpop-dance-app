@@ -50,7 +50,8 @@ export function useMediaPipe(videoRef, canvasRef) {
 
       if (result.landmarks.length > 0) {
         const raw = result.landmarks[0];
-        setLandmarks(raw);
+        setLandmarks(raw); //좌표 추출
+        console.log(raw);
 
         // 관절 점 그리기
         const drawUtils = new DrawingUtils(ctx);

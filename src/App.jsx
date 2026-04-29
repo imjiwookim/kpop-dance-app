@@ -52,13 +52,13 @@ function App() {
       {/* 선택된 곡 표시 */}
       {selectedSong && mode === "practice" && (
         <p style={{ textAlign: "center", color: "#6366f1", margin: "8px 0 0", fontSize: "14px" }}>
-          🎵 {selectedSong.title} - {selectedSong.artist}
+          🎵 {selectedSong.dance_id}
         </p>
       )}
 
       {/* 화면 전환 */}
       {mode === "select" && <SongSelect onSelect={handleSongSelect} />}
-      {mode === "practice" && <WebcamCapture songId={selectedSong?.id} />}
+      {mode === "practice" && <WebcamCapture song={selectedSong} />}
       {mode === "report" && <ReportView sessionId={sessionId} />}
     </div>
   );
