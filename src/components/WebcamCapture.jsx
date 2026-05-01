@@ -157,8 +157,8 @@ function WebcamCapture({ song, onFinish }) {
 
     const formData = new FormData();
     const userBlob = new Blob([JSON.stringify(userJson)], { type: "application/json" });
+    formData.append("dance_id", song.dance_id);
     formData.append("user_json", userBlob, "user_pose.json");
-    formData.append("expert_json", new Blob([], { type: "application/json" }), "expert_pose.json");
     formData.append("distance_metric", "l2");
     formData.append("top_n", "3");
 
