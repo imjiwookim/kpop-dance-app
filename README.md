@@ -38,7 +38,20 @@ setReferenceData(data.landmarks);
 const [score, setScore] = useState(null);
 const [jointScores, setJointScores] = useState([]);
 ```
+## 백엔드 API 연동 내역
 
+### 변경된 파일
+
+**SongSelect.jsx**
+- 기존: 곡 목록 하드코딩
+- 변경: `GET /dances` API로 곡 목록 동적 로드
+
+**WebcamCapture.jsx**
+- 기존: 로컬 JSON 파일에서 기준 데이터 로드 + 자체 유사도 계산
+- 변경:
+  - `GET /dances/{dance_id}/ready` → 영상 URL 수신
+  - `WS /ws/similarity/{dance_id}` → 관절 좌표 전송 + 실시간 점수 수신
+  
 ### 3. DTW 종합 리포트 (DTW 담당 효리)
 `src/components/ReportView.jsx`
 ```js
