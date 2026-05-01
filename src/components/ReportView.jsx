@@ -1,136 +1,135 @@
-import { useState, useEffect } from "react";
-
-function ReportView({ sessionId }) {
-  const [report, setReport] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    if (!sessionId) return;
-
-    const fetchReport = async () => {
-      setIsLoading(true);
-      setError(null);
-
-      try {
-        // 팀원이 API 완성하면 여기 주소만 바꾸면 됨!
-        const response = await fetch(`http://localhost:8000/api/dtw/result/${sessionId}`);
-        if (!response.ok) throw new Error("리포트를 불러올 수 없습니다.");
-
-        const data = await response.json();
-        setReport(data); // 팀원 데이터 형식에 따라 여기 수정
-      } catch (err) {
-        setError(err.message);
-        console.error("리포트 로드 실패:", err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchReport();
-  }, [sessionId]);
+function ReportView({ dtwResult }) {
 
   const getScoreColor = (s) => {
-    if (s >= 80) return "green";
-    if (s >= 50) return "orange";
-    return "red";
+    if (s >= 80) return "#22c55e";
+    if (s >= 50) return "#f97316";
+    return "#ef4444";
   };
 
-  // 로딩 중
-  if (isLoading) {
-    return <p style={{ color: "yellow" }}>리포트 분석 중...</p>;
-  }
+  const getSeverityColor = (severity) => {
+    if (severity === "high") return "#ef4444";
+    if (severity === "medium") return "#f97316";
+    return "#22c55e";
+  };
 
-  // 에러
-  if (error) {
-    return <p style={{ color: "red" }}>❌ {error}</p>;
-  }
-
-  // 데이터 없음
-  if (!report) {
+  if (!dtwResult) {
     return (
-      <div style={{ color: "gray", padding: "20px" }}>
-        <p>⚠️ DTW 리포트 없음 (팀원 API 연동 필요)</p>
-        <p style={{ fontSize: "12px" }}>
-          팀원 API 완성 후 ReportView.jsx 에서 주소 교체.
-        </p>
+      <div style={{ padding: "40px", textAlign: "center", color: "#a855f7" }}>
+        <p style={{ fontSize: "18px" }}>⚠️ 분석 결과가 없습니다</p>
+        <p style={{ color: "gray", fontSize: "14px" }}>연습 후 종료 버튼을 누르면 결과가 표시됩니다</p>
       </div>
     );
   }
 
-  // 리포트 표시
   return (
-    <div style={{ padding: "20px", color: "white" }}>
-      <h2>📊 종합 분석 리포트</h2>
+    <div style={{ padding: "20px 40px", color: "#3b1f6e" }}>
+      <h2 style={{ textAlign: "center", marginBottom: "24px" }}>📊 종합 분석 리포트</h2>
 
-      {/* 전체 점수 */}
-      <div style={{ marginBottom: "20px" }}>
-        <h3>전체 점수</h3>
+      {/* 종합 점수 */}
+      <div style={{
+        textAlign: "center",
+        padding: "24px",
+        background: "linear-gradient(135deg, #f3e8ff, #fce7f3)",
+        borderRadius: "16px",
+        marginBottom: "24px",
+        border: "1px solid #e9d5ff",
+      }}>
+        <p style={{ fontSize: "14px", color: "#a855f7", margin: "0 0 8px" }}>종합 유사도 점수</p>
         <p style={{
-          fontSize: "48px",
+          fontSize: "64px",
           fontWeight: "bold",
-          color: getScoreColor(report.score)
+          color: getScoreColor(dtwResult.overall_score),
+          margin: 0,
         }}>
-          {report.score}점
+          {Math.round(dtwResult.overall_score)}점
         </p>
+        <div style={{ display: "flex", gap: "24px", justifyContent: "center", marginTop: "16px", fontSize: "13px", color: "gray" }}>
+          <span>분석 ID: {dtwResult.analysis_id}</span>
+          <span>FPS: {dtwResult.fps}</span>
+          <span>거리 함수: {dtwResult.distance_metric}</span>
+        </div>
       </div>
 
-      {/* 박자 지연 */}
-      {report.delay !== undefined && (
-        <div style={{ marginBottom: "20px" }}>
-          <h3>박자 지연</h3>
-          <p style={{ fontSize: "24px", color: report.delay > 0.5 ? "red" : "green" }}>
-            {report.delay}초
-          </p>
+      {/* 프레임 정보 */}
+      <div style={{
+        display: "flex",
+        gap: "16px",
+        marginBottom: "24px",
+      }}>
+        <div style={{ flex: 1, padding: "16px", background: "#f3e8ff", borderRadius: "12px", textAlign: "center" }}>
+          <p style={{ color: "#a855f7", fontSize: "12px", margin: "0 0 4px" }}>전문가 프레임</p>
+          <p style={{ fontSize: "24px", fontWeight: "bold", color: "#6b21a8", margin: 0 }}>{dtwResult.expert_frame_count}</p>
         </div>
-      )}
+        <div style={{ flex: 1, padding: "16px", background: "#fce7f3", borderRadius: "12px", textAlign: "center" }}>
+          <p style={{ color: "#ec4899", fontSize: "12px", margin: "0 0 4px" }}>사용자 프레임</p>
+          <p style={{ fontSize: "24px", fontWeight: "bold", color: "#9d174d", margin: 0 }}>{dtwResult.user_frame_count}</p>
+        </div>
+        <div style={{ flex: 1, padding: "16px", background: "#f3e8ff", borderRadius: "12px", textAlign: "center" }}>
+          <p style={{ color: "#a855f7", fontSize: "12px", margin: "0 0 4px" }}>DTW 거리</p>
+          <p style={{ fontSize: "24px", fontWeight: "bold", color: "#6b21a8", margin: 0 }}>{dtwResult.dtw_distance?.toFixed(2)}</p>
+        </div>
+      </div>
 
       {/* 취약 구간 */}
-      {report.weakPoints && report.weakPoints.length > 0 && (
-        <div style={{ marginBottom: "20px" }}>
-          <h3>취약 관절 부위</h3>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
-            {report.weakPoints.map((point, i) => (
-              <div
-                key={i}
-                style={{
-                  padding: "8px 12px",
-                  background: "red",
-                  borderRadius: "4px",
+      <h3 style={{ marginBottom: "16px", color: "#6b21a8" }}>🚨 취약 구간 Top {dtwResult.mismatch_segments?.length}</h3>
+      <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+        {dtwResult.mismatch_segments?.map((seg) => (
+          <div key={seg.rank} style={{
+            padding: "16px",
+            background: "white",
+            borderRadius: "12px",
+            border: `2px solid ${getSeverityColor(seg.severity)}`,
+            boxShadow: "0 2px 8px rgba(168, 85, 247, 0.08)",
+          }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+              <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+                <span style={{
+                  padding: "4px 12px",
+                  background: getSeverityColor(seg.severity),
                   color: "white",
-                  fontSize: "14px",
-                }}
-              >
-                {point}번 관절
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* 구간별 점수 */}
-      {report.sectionScores && report.sectionScores.length > 0 && (
-        <div style={{ marginBottom: "20px" }}>
-          <h3>구간별 점수</h3>
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            {report.sectionScores.map((section, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                <span style={{ minWidth: "60px" }}>{i + 1}구간</span>
-                <div style={{
-                  height: "20px",
-                  width: `${section.score}%`,
-                  background: getScoreColor(section.score),
+                  borderRadius: "20px",
+                  fontSize: "12px",
+                  fontWeight: "bold",
+                }}>
+                  {seg.rank}위
+                </span>
+                <span style={{ color: "#6b21a8", fontWeight: "bold" }}>
+                  {seg.start_sec.toFixed(1)}초 ~ {seg.end_sec.toFixed(1)}초
+                </span>
+                <span style={{
+                  padding: "2px 8px",
+                  background: getSeverityColor(seg.severity) + "20",
+                  color: getSeverityColor(seg.severity),
                   borderRadius: "4px",
-                  transition: "width 0.3s",
-                }} />
-                <span style={{ color: getScoreColor(section.score) }}>
-                  {section.score}점
+                  fontSize: "12px",
+                  fontWeight: "bold",
+                }}>
+                  {seg.severity === "high" ? "심각" : seg.severity === "medium" ? "보통" : "낮음"}
                 </span>
               </div>
-            ))}
+              <span style={{ color: "gray", fontSize: "13px" }}>
+                평균 오차: {seg.mean_distance.toFixed(3)}
+              </span>
+            </div>
+
+            {/* 취약 관절 */}
+            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+              {seg.top_joints?.map((joint, i) => (
+                <div key={i} style={{
+                  padding: "6px 12px",
+                  background: "#f3e8ff",
+                  borderRadius: "8px",
+                  fontSize: "12px",
+                  color: "#6b21a8",
+                  fontWeight: "bold",
+                }}>
+                  {joint.name} ({joint.error.toFixed(2)})
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        ))}
+      </div>
     </div>
   );
 }

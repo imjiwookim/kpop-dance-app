@@ -48,10 +48,16 @@ export function useMediaPipe(videoRef, canvasRef) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-      if (result.landmarks.length > 0) {
-        const raw = result.landmarks[0];
-        setLandmarks(raw); //좌표 추출
-        console.log(raw);
+      if (result.landmarks.length > 0 && result.worldLandmarks.length > 0) {
+        const raw = result.landmarks[0].map((lm, i) => ({
+          x: 1 - lm.x,  // 거울 모드 보정
+          y: lm.y,
+          z: lm.z,
+          visibility: lm.visibility ?? 1.0,
+        }));
+
+        console.log("raw[0]:", raw[0]);
+        setLandmarks(raw);
 
         // 관절 점 그리기
         const drawUtils = new DrawingUtils(ctx);

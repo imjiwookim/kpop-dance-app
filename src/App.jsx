@@ -6,22 +6,22 @@ import ReportView from "./components/ReportView";
 function App() {
   const [mode, setMode] = useState("select");
   const [selectedSong, setSelectedSong] = useState(null);
-  const [sessionId, setSessionId] = useState(null);
+  const [dtwResult, setDtwResult] = useState(null);
 
   const handleSongSelect = (song) => {
     setSelectedSong(song);
     setMode("practice");
   };
 
-  const handleFinish = () => {
-    setSessionId("test-session-1");
+  const handleFinish = (result) => {
+    setDtwResult(result);
     setMode("report");
   };
 
   const handleBack = () => {
     setMode("select");
     setSelectedSong(null);
-    setSessionId(null);
+    setDtwResult(null);
   };
 
   return (
@@ -49,7 +49,6 @@ function App() {
           </h1>
         </div>
 
-        {/* 메뉴 */}
         <p style={{ fontSize: "11px", color: "#c084fc", margin: "0 0 8px 8px", letterSpacing: "1px" }}>MENU</p>
 
         <button onClick={handleBack} style={sidebarBtn(mode === "select")}>
@@ -62,8 +61,8 @@ function App() {
           🎮 연습 모드
         </button>
         <button
-          onClick={handleFinish}
-          style={sidebarBtn(mode === "report", !selectedSong)}
+          onClick={() => dtwResult && setMode("report")}
+          style={sidebarBtn(mode === "report", !dtwResult)}
         >
           📊 리포트
         </button>
@@ -88,8 +87,13 @@ function App() {
       {/* 메인 화면 */}
       <div style={{ flex: 1, overflow: "auto" }}>
         {mode === "select" && <SongSelect onSelect={handleSongSelect} />}
-        {mode === "practice" && <WebcamCapture song={selectedSong} />}
-        {mode === "report" && <ReportView sessionId={sessionId} />}
+        {mode === "practice" && (
+          <WebcamCapture
+            song={selectedSong}
+            onFinish={handleFinish}
+          />
+        )}
+        {mode === "report" && <ReportView dtwResult={dtwResult} />}
       </div>
     </div>
   );

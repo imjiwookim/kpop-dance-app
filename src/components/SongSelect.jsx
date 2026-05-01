@@ -60,7 +60,7 @@ function SongSelect({ onSelect }) {
 
   return (
     <div style={{ padding: "20px", color: "white" }}>
-      <h2 style={{ textAlign: "center", marginBottom: "30px" }}>
+      <h2 style={{ textAlign: "center", marginBottom: "30px", color: "pink" }}>
         🎵 연습할 곡을 선택하세요
       </h2>
       <div style={{ display: "flex", gap: "20px", justifyContent: "center", flexWrap: "wrap" }}>
