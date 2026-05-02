@@ -54,6 +54,11 @@ function WebcamCapture({ song, onFinish }) {
 
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
+      if (data.error) {
+        console.error("서버 에러 발생:", data.error);
+        return; // 에러면 아래 점수 계산 로직을 실행하지 않음
+      }
+      
       if (data.similarity !== null) {
         setScore(Math.round(data.similarity * 100));
         setParts(data.parts);
@@ -73,7 +78,7 @@ function WebcamCapture({ song, onFinish }) {
     const currentTime = referenceVideoRef.current?.currentTime ?? 0;
     const frame = {
       frame_idx: frameIdxRef.current,
-      timestamp_sec: currentTime,
+      timestamp: currentTime,
       landmarks: landmarks.map((lm) => ({
         x: lm.x,
         y: lm.y,
