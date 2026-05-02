@@ -16,16 +16,13 @@ function SongSelect({ onSelect }) {
         setSongs(data.dances);
       } catch (err) {
         setError(err.message);
-        console.error(err);
       } finally {
         setIsLoading(false);
       }
     };
-
     fetchDances();
   }, []);
 
-  // dance_id로 썸네일 가져오기
   const getThumbnail = (dance_id) => {
     const thumbnails = {
       "ive_love_dive": "https://img.youtube.com/vi/IIdOKj-hWAY/0.jpg",
@@ -35,7 +32,6 @@ function SongSelect({ onSelect }) {
     return thumbnails[dance_id] || "https://via.placeholder.com/200x150";
   };
 
-  // dance_id로 곡 이름 가져오기
   const getSongTitle = (dance_id) => {
     const titles = {
       "ive_love_dive": "LOVE DIVE",
@@ -45,7 +41,6 @@ function SongSelect({ onSelect }) {
     return titles[dance_id] || dance_id;
   };
 
-  // dance_id로 아티스트 가져오기
   const getArtist = (dance_id) => {
     const artists = {
       "ive_love_dive": "IVE (아이브)",
@@ -55,14 +50,12 @@ function SongSelect({ onSelect }) {
     return artists[dance_id] || "";
   };
 
-  if (isLoading) return <p style={{ color: "yellow", textAlign: "center", padding: "40px" }}>곡 목록 불러오는 중...</p>;
+  if (isLoading) return <p style={{ color: "#a855f7", textAlign: "center", padding: "40px" }}>곡 목록 불러오는 중...</p>;
   if (error) return <p style={{ color: "red", textAlign: "center", padding: "40px" }}>❌ {error}</p>;
 
   return (
-    <div style={{ padding: "20px", color: "white" }}>
-      <h2 style={{ textAlign: "center", marginBottom: "30px", color: "pink" }}>
-        🎵 연습할 곡을 선택하세요
-      </h2>
+    <div style={{ padding: "20px" }}>
+      <h2 style={{ textAlign: "center", marginBottom: "30px", color: "#6b21a8" }}>🎵 연습할 곡을 선택하세요</h2>
       <div style={{ display: "flex", gap: "20px", justifyContent: "center", flexWrap: "wrap" }}>
         {songs.map((song) => (
           <div
@@ -70,31 +63,22 @@ function SongSelect({ onSelect }) {
             onClick={() => onSelect(song)}
             style={{
               width: "200px",
-              background: "#222",
+              background: "white",
               borderRadius: "12px",
               overflow: "hidden",
               cursor: "pointer",
-              border: "2px solid #333",
+              border: "2px solid #e9d5ff",
               transition: "border 0.2s",
+              boxShadow: "0 2px 8px rgba(168, 85, 247, 0.1)",
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.border = "2px solid #6366f1")}
-            onMouseLeave={(e) => (e.currentTarget.style.border = "2px solid #333")}
+            onMouseEnter={(e) => (e.currentTarget.style.border = "2px solid #a855f7")}
+            onMouseLeave={(e) => (e.currentTarget.style.border = "2px solid #e9d5ff")}
           >
-            <img
-              src={getThumbnail(song.dance_id)}
-              alt={getSongTitle(song.dance_id)}
-              style={{ width: "100%", height: "150px", objectFit: "cover" }}
-            />
+            <img src={getThumbnail(song.dance_id)} alt={getSongTitle(song.dance_id)} style={{ width: "100%", height: "150px", objectFit: "cover" }} />
             <div style={{ padding: "12px" }}>
-              <p style={{ fontWeight: "bold", fontSize: "16px", margin: "0 0 4px" }}>
-                {getSongTitle(song.dance_id)}
-              </p>
-              <p style={{ color: "gray", fontSize: "13px", margin: "0 0 4px" }}>
-                {getArtist(song.dance_id)}
-              </p>
-              <p style={{ color: "#6366f1", fontSize: "11px", margin: 0 }}>
-                {song.duration_sec}초 · {song.fps}fps
-              </p>
+              <p style={{ fontWeight: "bold", fontSize: "16px", margin: "0 0 4px", color: "#6b21a8" }}>{getSongTitle(song.dance_id)}</p>
+              <p style={{ color: "gray", fontSize: "13px", margin: "0 0 4px" }}>{getArtist(song.dance_id)}</p>
+              <p style={{ color: "#a855f7", fontSize: "11px", margin: 0 }}>{song.duration_sec}초 · {song.fps}fps</p>
             </div>
           </div>
         ))}

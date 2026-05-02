@@ -50,7 +50,7 @@ export function useMediaPipe(videoRef, canvasRef) {
 
       if (result.landmarks.length > 0 && result.worldLandmarks.length > 0) {
         const raw = result.landmarks[0].map((lm, i) => ({
-          x: 1 - lm.x,  // 거울 모드 보정
+          x: lm.x,
           y: lm.y,
           z: lm.z,
           visibility: lm.visibility ?? 1.0,
