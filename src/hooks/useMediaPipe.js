@@ -49,8 +49,10 @@ export function useMediaPipe(videoRef, canvasRef) {
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
       if (result.landmarks.length > 0 && result.worldLandmarks.length > 0) {
-        const raw = result.landmarks[0].map((lm, i) => ({
-          x: 1 - lm.x,  // 거울 모드 보정
+        const original = result.landmarks[0];
+
+        const raw = original.map((lm) => ({
+          x: 1 - lm.x,
           y: lm.y,
           z: lm.z,
           visibility: lm.visibility ?? 1.0,
@@ -61,8 +63,8 @@ export function useMediaPipe(videoRef, canvasRef) {
 
         // 관절 점 그리기
         const drawUtils = new DrawingUtils(ctx);
-        drawUtils.drawLandmarks(raw, { color: "#FF0000", radius: 4 });
-        drawUtils.drawConnectors(raw, PoseLandmarker.POSE_CONNECTIONS, {
+        drawUtils.drawLandmarks(original, { color: "#FF0000", radius: 4 });
+        drawUtils.drawConnectors(original, PoseLandmarker.POSE_CONNECTIONS, {
           color: "#00FF00",
           lineWidth: 2,
         });
