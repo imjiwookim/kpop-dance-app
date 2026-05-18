@@ -1,12 +1,40 @@
 import { useEffect, useRef, useState } from "react";
 import { PoseLandmarker, FilesetResolver, DrawingUtils } from "@mediapipe/tasks-vision";
 
+// ── [추가] 모델 설정 ──────────────────────────────────────────
+// 실험할 모델을 여기서 변경하세요: "lite" | "full" | "heavy"
+export const CURRENT_MODEL = "lite";
+
+const MODEL_CONFIGS = {
+  lite: {
+    label: "Lite",
+    path: "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task",
+  },
+  full: {
+    label: "Full",
+    path: "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task",
+  },
+  heavy: {
+    label: "Heavy",
+    path: "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_heavy/float16/1/pose_landmarker_heavy.task",
+  },
+};
+// ─────────────────────────────────────────────────────────────
+
 export function useMediaPipe(videoRef, canvasRef) {
   const poseLandmarkerRef = useRef(null);
   const [landmarks, setLandmarks] = useState(null);
   const animFrameRef = useRef(null);
 
+  // ── [추가] FPS 측정용 ────────────────────────────────────────
+  const [fps, setFps] = useState(0);
+  const fpsFrameCountRef = useRef(0);
+  const fpsLastTimeRef = useRef(performance.now());
+  // ─────────────────────────────────────────────────────────────
+
   useEffect(() => {
+    const selectedModel = MODEL_CONFIGS[CURRENT_MODEL];
+
     const init = async () => {
       const vision = await FilesetResolver.forVisionTasks(
         "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.8/wasm"
@@ -14,8 +42,8 @@ export function useMediaPipe(videoRef, canvasRef) {
 
       poseLandmarkerRef.current = await PoseLandmarker.createFromOptions(vision, {
         baseOptions: {
-          modelAssetPath:
-            "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task",
+          // ── [수정] 모델 경로를 MODEL_CONFIGS에서 가져옴 ──────
+          modelAssetPath: selectedModel.path,
           delegate: "CPU",
         },
         runningMode: "VIDEO",
@@ -58,10 +86,9 @@ export function useMediaPipe(videoRef, canvasRef) {
           visibility: lm.visibility ?? 1.0,
         }));
 
-        console.log("raw[0]:", raw[0]);
+        // ── [삭제] console.log("raw[0]:", raw[0]); ──────────────
         setLandmarks(raw);
 
-        // 관절 점 그리기
         const drawUtils = new DrawingUtils(ctx);
         drawUtils.drawLandmarks(original, { color: "#FF0000", radius: 4 });
         drawUtils.drawConnectors(original, PoseLandmarker.POSE_CONNECTIONS, {
@@ -69,6 +96,17 @@ export function useMediaPipe(videoRef, canvasRef) {
           lineWidth: 2,
         });
       }
+
+      // ── [추가] FPS 계산 ──────────────────────────────────────
+      fpsFrameCountRef.current += 1;
+      const now = performance.now();
+      const elapsed = now - fpsLastTimeRef.current;
+      if (elapsed >= 1000) {
+        setFps(Math.round((fpsFrameCountRef.current * 1000) / elapsed));
+        fpsFrameCountRef.current = 0;
+        fpsLastTimeRef.current = now;
+      }
+      // ─────────────────────────────────────────────────────────
 
       animFrameRef.current = requestAnimationFrame(detect);
     };
@@ -80,5 +118,11 @@ export function useMediaPipe(videoRef, canvasRef) {
     };
   }, []);
 
-  return { landmarks };
+  // ── [추가] fps, 현재 모델명도 반환 ───────────────────────────
+  return {
+    landmarks,
+    fps,
+    modelLabel: MODEL_CONFIGS[CURRENT_MODEL].label,
+  };
+  // ─────────────────────────────────────────────────────────────
 }

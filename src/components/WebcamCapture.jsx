@@ -5,15 +5,6 @@ const BASE_URL = "http://localhost:8000";
 const WS_URL = "ws://localhost:8000";
 const WINDOW_SIZE = 15;
 
-/**
- * 상태(phase) 흐름
- * "idle"       → 웹캠 ON + 관절 표시, 영상·피드백 대기
- * "practicing" → 영상 재생 + 실시간 WebSocket 피드백 + 프레임 누적
- * "analyzing"  → DTW API 호출 중
- *
- * 핵심: <video ref={referenceVideoRef}> 는 항상 DOM에 존재.
- * idle 상태에선 visibility:hidden + 플레이스홀더 div를 absolute로 덮음.
- */
 function WebcamCapture({ song, onFinish }) {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -31,7 +22,9 @@ function WebcamCapture({ song, onFinish }) {
   const [videoUrl, setVideoUrl] = useState(null);
   const [frameCount, setFrameCount] = useState(0);
 
-  const { landmarks } = useMediaPipe(videoRef, canvasRef);
+  // ── [수정] fps, modelLabel 추가로 받아옴 ─────────────────────
+  const { landmarks, fps, modelLabel } = useMediaPipe(videoRef, canvasRef);
+  // ─────────────────────────────────────────────────────────────
 
   // ── 1. 댄스 준비 ────────────────────────────────────────────
   useEffect(() => {
@@ -132,7 +125,7 @@ function WebcamCapture({ song, onFinish }) {
     }
 
     try {
-      const jsonBlob = new Blob([JSON.stringify({ frames })], { type: "application/json" });
+      const jsonBlob = new Blob([JSON.stringify({ frames, fps: song.fps })], { type: "application/json" });
       const formData = new FormData();
       formData.append("dance_id", song.dance_id);
       formData.append("user_json", jsonBlob, "user_pose.json");
@@ -171,7 +164,6 @@ function WebcamCapture({ song, onFinish }) {
     setError(null);
     setPhase("practicing");
 
-    // video는 이미 DOM에 있으므로 바로 play() 가능
     const vid = referenceVideoRef.current;
     if (vid) {
       vid.currentTime = 0;
@@ -262,8 +254,6 @@ function WebcamCapture({ song, onFinish }) {
           <p style={{ textAlign: "center", color: "gray", marginBottom: "6px", fontSize: "13px" }}>
             🎬 정답 안무
           </p>
-
-          {/* video는 항상 DOM에 존재 — idle일 때 플레이스홀더로 덮음 */}
           <div style={{ position: "relative", width: "480px", height: "480px", borderRadius: "10px", overflow: "hidden" }}>
             <video
               ref={referenceVideoRef}
@@ -274,12 +264,9 @@ function WebcamCapture({ song, onFinish }) {
                 background: "#000", objectFit: "contain", display: "block",
               }}
             />
-
-            {/* idle 오버레이 */}
             {phase === "idle" && (
               <div style={{
-                position: "absolute", inset: 0,
-                background: "#1a1a2e",
+                position: "absolute", inset: 0, background: "#1a1a2e",
                 display: "flex", flexDirection: "column",
                 alignItems: "center", justifyContent: "center", gap: "10px",
               }}>
@@ -292,7 +279,7 @@ function WebcamCapture({ song, onFinish }) {
           </div>
         </div>
 
-        {/* 내 동작 — 웹캠 항상 ON */}
+        {/* 내 동작 */}
         <div style={{ width: "480px" }}>
           <p style={{ textAlign: "center", color: "gray", marginBottom: "6px", fontSize: "13px" }}>
             🎥 내 동작
@@ -320,6 +307,23 @@ function WebcamCapture({ song, onFinish }) {
                 transform: "scaleX(-1)",
               }}
             />
+
+            {/* ── [추가] FPS + 모델명 오버레이 ─────────────────── */}
+            <div style={{
+              position: "absolute", top: "10px", left: "10px",
+              background: "rgba(0,0,0,0.55)",
+              borderRadius: "8px", padding: "6px 12px",
+              display: "flex", gap: "12px", alignItems: "center",
+            }}>
+              <span style={{ color: "#22c55e", fontSize: "13px", fontWeight: "700" }}>
+                {fps} FPS
+              </span>
+              <span style={{ color: "#a855f7", fontSize: "12px", fontWeight: "600" }}>
+                MediaPipe {modelLabel}
+              </span>
+            </div>
+            {/* ─────────────────────────────────────────────────── */}
+
             {phase === "idle" && (
               <div style={{
                 position: "absolute", inset: 0,
