@@ -24,42 +24,16 @@ src/
 
 ### 1. 기준 안무 데이터 (실시간 담당 주영)
 `src/hooks/usePoseData.js`
-```js
-// 이 주소를 팀원 API 주소로 교체
-const response = await fetch(`http://localhost:8000/api/pose/${songId}`);
-// 팀원 데이터 형식에 따라 아래 수정
-setReferenceData(data.landmarks);
-```
 
 ### 2. 실시간 유사도 점수 (실시간 담당 주영)
 `src/components/WebcamCapture.jsx`
-```js
-// score, jointScores 상태값에 팀원 API 결과 넣으면 됨
-const [score, setScore] = useState(null);
-const [jointScores, setJointScores] = useState([]);
-```
-## 백엔드 API 연동 내역
 
-### 변경된 파일
+## 백엔드 API 연동 현황
 
-**SongSelect.jsx**
-- 기존: 곡 목록 하드코딩
-- 변경: `GET /dances` API로 곡 목록 동적 로드
-
-**WebcamCapture.jsx**
-- 기존: 로컬 JSON 파일에서 기준 데이터 로드 + 자체 유사도 계산
-- 변경:
-  - `GET /dances/{dance_id}/ready` → 영상 URL 수신
-  - `WS /ws/similarity/{dance_id}` → 관절 좌표 전송 + 실시간 점수 수신
+완료
   
 ### 3. DTW 종합 리포트 (DTW 담당 효리)
 `src/components/ReportView.jsx`
-```js
-// 이 주소를 팀원 API 주소로 교체
-const response = await fetch(`http://localhost:8000/api/dtw/result/${sessionId}`);
-// 팀원 데이터 형식에 따라 아래 수정
-setReport(data);
-```
 
 ## 실행 방법
 ```bash
