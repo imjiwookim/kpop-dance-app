@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { PoseLandmarker, FilesetResolver, DrawingUtils } from "@mediapipe/tasks-vision";
 
-// ── [추가] 모델 설정 ──────────────────────────────────────────
 // 실험할 모델을 여기서 변경하세요: "lite" | "full" | "heavy"
-export const CURRENT_MODEL = "lite";
+export const CURRENT_MODEL = "full";
 
 const MODEL_CONFIGS = {
   lite: {
@@ -19,18 +18,16 @@ const MODEL_CONFIGS = {
     path: "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_heavy/float16/1/pose_landmarker_heavy.task",
   },
 };
-// ─────────────────────────────────────────────────────────────
 
 export function useMediaPipe(videoRef, canvasRef) {
   const poseLandmarkerRef = useRef(null);
   const [landmarks, setLandmarks] = useState(null);
   const animFrameRef = useRef(null);
 
-  // ── [추가] FPS 측정용 ────────────────────────────────────────
+  // FPS 측정용
   const [fps, setFps] = useState(0);
   const fpsFrameCountRef = useRef(0);
   const fpsLastTimeRef = useRef(performance.now());
-  // ─────────────────────────────────────────────────────────────
 
   useEffect(() => {
     const selectedModel = MODEL_CONFIGS[CURRENT_MODEL];
@@ -42,7 +39,6 @@ export function useMediaPipe(videoRef, canvasRef) {
 
       poseLandmarkerRef.current = await PoseLandmarker.createFromOptions(vision, {
         baseOptions: {
-          // ── [수정] 모델 경로를 MODEL_CONFIGS에서 가져옴 ──────
           modelAssetPath: selectedModel.path,
           delegate: "CPU",
         },
@@ -76,18 +72,56 @@ export function useMediaPipe(videoRef, canvasRef) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-      if (result.landmarks.length > 0 && result.worldLandmarks.length > 0) {
+      if (result.landmarks.length > 0) {
         const original = result.landmarks[0];
 
-        const raw = original.map((lm) => ({
-          x: 1 - lm.x,
-          y: lm.y,
-          z: lm.z,
-          visibility: lm.visibility ?? 1.0,
-        }));
+        const raw = original.map((lm) => {
+          // 1. 기본값은 잘 보인다고 가정 (1.0)
+          let simulatedScore = 1.0;
 
-        // ── [삭제] console.log("raw[0]:", raw[0]); ──────────────
+          // 2. [방법 1] X나 Y 좌표가 화면 끝(상하좌우 3% 경계선 영역)으로 나가면 0.0으로 강제 변경
+          if (lm.x < 0.03 || lm.x > 0.97 || lm.y < 0.03 || lm.y > 0.97) {
+            simulatedScore = 0.0;
+          }
+
+          return {
+            x: 1 - lm.x,
+            y: lm.y,
+            z: lm.z,
+            visibility: simulatedScore, 
+          };
+        });
+
         setLandmarks(raw);
+
+        // ── 실시간 데이터 가시성 검증용 표(Table) 콘솔 출력 ──
+        if (fpsFrameCountRef.current === 1) {
+          console.clear();
+          console.log(`📊 [현재 모델: ${MODEL_CONFIGS[CURRENT_MODEL].label}] 주요 관절 데이터`);
+
+          const targetIndices = {
+            0: "코 (Nose)",
+            11: "왼쪽 어깨 (L_Shoulder)",
+            12: "오른쪽 어깨 (R_Shoulder)",
+            15: "왼쪽 손목 (L_Wrist)",
+            16: "오른쪽 손목 (R_Wrist)",
+          };
+
+          const logData = [];
+          for (const [index, name] of Object.entries(targetIndices)) {
+            if (raw[index]) {
+              logData.push({
+                "관절 이름": name,
+                "X 좌표": raw[index].x.toFixed(3),
+                "Y 좌표": raw[index].y.toFixed(3),
+                "가시성 (Visibility)": raw[index].visibility.toFixed(3),
+              });
+            }
+          }
+
+          console.table(logData);
+        }
+        // ───────────────────────────────────────────────────
 
         const drawUtils = new DrawingUtils(ctx);
         drawUtils.drawLandmarks(original, { color: "#FF0000", radius: 4 });
@@ -97,7 +131,7 @@ export function useMediaPipe(videoRef, canvasRef) {
         });
       }
 
-      // ── [추가] FPS 계산 ──────────────────────────────────────
+      // FPS 계산
       fpsFrameCountRef.current += 1;
       const now = performance.now();
       const elapsed = now - fpsLastTimeRef.current;
@@ -106,7 +140,6 @@ export function useMediaPipe(videoRef, canvasRef) {
         fpsFrameCountRef.current = 0;
         fpsLastTimeRef.current = now;
       }
-      // ─────────────────────────────────────────────────────────
 
       animFrameRef.current = requestAnimationFrame(detect);
     };
@@ -118,11 +151,9 @@ export function useMediaPipe(videoRef, canvasRef) {
     };
   }, []);
 
-  // ── [추가] fps, 현재 모델명도 반환 ───────────────────────────
   return {
     landmarks,
     fps,
     modelLabel: MODEL_CONFIGS[CURRENT_MODEL].label,
   };
-  // ─────────────────────────────────────────────────────────────
 }
