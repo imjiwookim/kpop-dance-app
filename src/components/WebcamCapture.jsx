@@ -22,10 +22,9 @@ function WebcamCapture({ song, onFinish }) {
   const [videoUrl, setVideoUrl] = useState(null);
   const [frameCount, setFrameCount] = useState(0);
 
-  // ── [수정] fps, modelLabel 추가로 받아옴 ─────────────────────
-  const { landmarks, fps, modelLabel } = useMediaPipe(videoRef, canvasRef);
-  // ─────────────────────────────────────────────────────────────
+  const { landmarks, partsRef, fps, modelLabel } = useMediaPipe(videoRef, canvasRef);
 
+  
   // ── 1. 댄스 준비 ────────────────────────────────────────────
   useEffect(() => {
     if (!song?.dance_id) return;
@@ -56,12 +55,17 @@ function WebcamCapture({ song, onFinish }) {
       if (data.similarity !== null) {
         setScore(Math.round(data.similarity * 100));
         setParts(data.parts);
+        // ── [추가] partsRef 업데이트 → 관절 색상 즉시 반영 ──────
+        partsRef.current = data.parts;
       }
     };
     ws.onerror = (err) => console.error("WebSocket 오류:", err);
     ws.onclose = () => console.log("WebSocket 종료");
 
-    return () => ws.close();
+    return () => {
+      ws.close();
+      partsRef.current = null;
+    };
   }, [phase, song]);
 
   // ── 3. 관절 수집 + WebSocket 전송 (practicing만) ────────────
@@ -161,6 +165,7 @@ function WebcamCapture({ song, onFinish }) {
     setFrameCount(0);
     setScore(null);
     setParts(null);
+    partsRef.current = null;
     setError(null);
     setPhase("practicing");
 
@@ -193,7 +198,6 @@ function WebcamCapture({ song, onFinish }) {
     left_leg: "왼다리", right_leg: "오른다리",
   }[key] ?? key);
 
-  // ────────────────────────────────────────────────────────────
   return (
     <div style={{ color: "#3b1f6e", padding: "10px 20px" }}>
 
@@ -308,7 +312,7 @@ function WebcamCapture({ song, onFinish }) {
               }}
             />
 
-            {/* ── [추가] FPS + 모델명 오버레이 ─────────────────── */}
+            {/* FPS + 모델명 오버레이 */}
             <div style={{
               position: "absolute", top: "10px", left: "10px",
               background: "rgba(0,0,0,0.55)",
@@ -322,7 +326,6 @@ function WebcamCapture({ song, onFinish }) {
                 MediaPipe {modelLabel}
               </span>
             </div>
-            {/* ─────────────────────────────────────────────────── */}
 
             {phase === "idle" && (
               <div style={{
