@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { PoseLandmarker, FilesetResolver, DrawingUtils } from "@mediapipe/tasks-vision";
 import { drawOverlay } from "./useOverlay";
 
-export const CURRENT_MODEL = "full";
+export const CURRENT_MODEL = "lite";
 
 const MODEL_CONFIGS = {
   lite: {
