@@ -15,7 +15,12 @@ function WebcamCapture({ song, onFinish }) {
   const allFramesRef = useRef([]);
   const isAnalyzingRef = useRef(false);
 
+  // ── [추가] phase에 "countdown" 추가 ─────────────────────────
+  // "idle" | "countdown" | "practicing" | "analyzing"
   const [phase, setPhase] = useState("idle");
+  const [countdown, setCountdown] = useState(null); // 3, 2, 1, null
+  // ─────────────────────────────────────────────────────────────
+
   const [error, setError] = useState(null);
   const [score, setScore] = useState(null);
   const [parts, setParts] = useState(null);
@@ -24,7 +29,6 @@ function WebcamCapture({ song, onFinish }) {
 
   const { landmarks, partsRef, fps, modelLabel } = useMediaPipe(videoRef, canvasRef);
 
-  
   // ── 1. 댄스 준비 ────────────────────────────────────────────
   useEffect(() => {
     if (!song?.dance_id) return;
@@ -55,7 +59,6 @@ function WebcamCapture({ song, onFinish }) {
       if (data.similarity !== null) {
         setScore(Math.round(data.similarity * 100));
         setParts(data.parts);
-        // ── [추가] partsRef 업데이트 → 관절 색상 즉시 반영 ──────
         partsRef.current = data.parts;
       }
     };
@@ -157,7 +160,7 @@ function WebcamCapture({ song, onFinish }) {
     }
   }, [song, onFinish]);
 
-  // ── 6. 시작 버튼 ────────────────────────────────────────────
+  // ── 6. 시작 버튼 → 카운트다운 후 연습 시작 ──────────────────
   const handleStart = () => {
     allFramesRef.current = [];
     frameIdxRef.current = 0;
@@ -167,14 +170,28 @@ function WebcamCapture({ song, onFinish }) {
     setParts(null);
     partsRef.current = null;
     setError(null);
-    setPhase("practicing");
+    setPhase("countdown");
+    setCountdown(3);
 
-    const vid = referenceVideoRef.current;
-    if (vid) {
-      vid.currentTime = 0;
-      vid.play().catch((e) => console.error("영상 재생 실패:", e));
-    }
+    // 3 → 2 → 1 → 시작
+    let count = 3;
+    const timer = setInterval(() => {
+      count -= 1;
+      if (count === 0) {
+        clearInterval(timer);
+        setCountdown(null);
+        setPhase("practicing");
+        const vid = referenceVideoRef.current;
+        if (vid) {
+          vid.currentTime = 0;
+          vid.play().catch((e) => console.error("영상 재생 실패:", e));
+        }
+      } else {
+        setCountdown(count);
+      }
+    }, 1000);
   };
+  // ─────────────────────────────────────────────────────────────
 
   // ── 7. 영상 종료 → 자동 DTW ─────────────────────────────────
   const handleVideoEnded = useCallback(() => {
@@ -190,7 +207,7 @@ function WebcamCapture({ song, onFinish }) {
   // ── 헬퍼 ────────────────────────────────────────────────────
   const getScoreColor = (s) => {
     if (s >= 80) return "#16a34a";
-    if (s >= 50) return "#ea580c";
+    if (s >= 50) return "#F1A519";
     return "#dc2626";
   };
   const partLabel = (key) => ({
@@ -268,7 +285,7 @@ function WebcamCapture({ song, onFinish }) {
                 background: "#000", objectFit: "contain", display: "block",
               }}
             />
-            {phase === "idle" && (
+            {(phase === "idle" || phase === "countdown") && (
               <div style={{
                 position: "absolute", inset: 0, background: "#1a1a2e",
                 display: "flex", flexDirection: "column",
@@ -276,7 +293,7 @@ function WebcamCapture({ song, onFinish }) {
               }}>
                 <span style={{ fontSize: "52px" }}>🎬</span>
                 <p style={{ color: "#a855f7", fontSize: "14px", margin: 0 }}>
-                  시작 버튼을 눌러 연습을 시작하세요
+                  {phase === "countdown" ? "잠시 후 시작됩니다..." : "시작 버튼을 눌러 연습을 시작하세요"}
                 </p>
               </div>
             )}
@@ -327,6 +344,26 @@ function WebcamCapture({ song, onFinish }) {
               </span>
             </div>
 
+            {/* ── [추가] 카운트다운 오버레이 ──────────────────────── */}
+            {phase === "countdown" && countdown !== null && (
+              <div style={{
+                position: "absolute", inset: 0,
+                background: "rgba(0,0,0,0.5)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                <span style={{
+                  fontSize: "120px",
+                  fontWeight: "900",
+                  color: "white",
+                  textShadow: "0 0 30px rgba(168,85,247,0.8)",
+                  animation: "pulse 0.9s ease-in-out",
+                }}>
+                  {countdown}
+                </span>
+              </div>
+            )}
+            {/* ─────────────────────────────────────────────────── */}
+
             {phase === "idle" && (
               <div style={{
                 position: "absolute", inset: 0,
@@ -345,23 +382,23 @@ function WebcamCapture({ song, onFinish }) {
         textAlign: "center", marginTop: "20px",
         display: "flex", gap: "16px", justifyContent: "center", alignItems: "center",
       }}>
-        {phase === "idle" && (
+        {(phase === "idle" || phase === "countdown") && (
           <button
             onClick={handleStart}
-            disabled={!videoUrl}
+            disabled={!videoUrl || phase === "countdown"}
             style={{
               padding: "14px 64px", fontSize: "17px", fontWeight: "700",
               borderRadius: "14px", border: "none",
-              cursor: videoUrl ? "pointer" : "not-allowed",
-              background: videoUrl
-                ? "linear-gradient(135deg, #a855f7, #ec4899)"
-                : "#d1d5db",
+              cursor: (!videoUrl || phase === "countdown") ? "not-allowed" : "pointer",
+              background: (!videoUrl || phase === "countdown")
+                ? "#d1d5db"
+                : "linear-gradient(135deg, #a855f7, #ec4899)",
               color: "white",
-              boxShadow: videoUrl ? "0 6px 20px rgba(168,85,247,0.4)" : "none",
+              boxShadow: (!videoUrl || phase === "countdown") ? "none" : "0 6px 20px rgba(168,85,247,0.4)",
               transition: "all 0.2s",
             }}
           >
-            ▶ 시작
+            {phase === "countdown" ? `${countdown}초 후 시작...` : "▶ 시작"}
           </button>
         )}
 
