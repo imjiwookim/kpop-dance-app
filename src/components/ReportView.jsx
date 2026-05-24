@@ -1,4 +1,59 @@
-function ReportView({ dtwResult, onBack }) {
+import { useRef, useState, useEffect } from "react";
+
+const BASE_URL = "http://localhost:8000";
+
+// ── SegmentVideo를 컴포넌트 밖으로 분리 ─────────────────────────
+function SegmentVideo({ seg, videoUrl, onEnd, getSeverityColor }) {
+  const videoRef = useRef(null);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const playFromStart = () => {
+      video.currentTime = seg.start_sec;
+      video.play();
+    };
+
+    if (video.readyState >= 2) {
+      playFromStart();
+    } else {
+      video.addEventListener("loadeddata", playFromStart, { once: true });
+    }
+
+    return () => {
+      video.removeEventListener("loadeddata", playFromStart);
+      video.pause();
+    };
+  }, [seg.start_sec]);
+
+  const handleTimeUpdate = () => {
+    if (videoRef.current && videoRef.current.currentTime >= seg.end_sec) {
+      videoRef.current.pause();
+      onEnd();
+    }
+  };
+
+  return (
+    <div style={{
+      marginBottom: "14px",
+      borderRadius: "12px", overflow: "hidden",
+      border: `2px solid ${getSeverityColor(seg.severity)}`,
+    }}>
+      <video
+        ref={videoRef}
+        src={videoUrl}
+        controls
+        onTimeUpdate={handleTimeUpdate}
+        style={{ width: "100%", maxHeight: "280px", objectFit: "contain", background: "#000", display: "block" }}
+      />
+    </div>
+  );
+}
+// ─────────────────────────────────────────────────────────────────
+
+function ReportView({ dtwResult }) {
+  const [playingRank, setPlayingRank] = useState(null);
 
   const getScoreColor = (s) => {
     if (s >= 80) return "#22c55e";
@@ -47,6 +102,7 @@ function ReportView({ dtwResult, onBack }) {
   }
 
   const score = Math.round(dtwResult.overall_score);
+  const videoUrl = `${BASE_URL}/static/videos/${dtwResult.dance_id}.mp4`;
 
   return (
     <div style={{ padding: "24px 40px", color: "#3b1f6e", maxWidth: "900px", margin: "0 auto" }}>
@@ -74,33 +130,24 @@ function ReportView({ dtwResult, onBack }) {
             종합 유사도 점수
           </p>
           <div style={{ display: "flex", alignItems: "flex-end", gap: "8px" }}>
-            <span style={{
-              fontSize: "72px", fontWeight: "900", lineHeight: 1,
-              color: getScoreColor(score),
-            }}>
+            <span style={{ fontSize: "72px", fontWeight: "900", lineHeight: 1, color: getScoreColor(score) }}>
               {score}
             </span>
             <span style={{ fontSize: "24px", color: getScoreColor(score), fontWeight: "700", marginBottom: "8px" }}>점</span>
           </div>
           <div style={{
-            marginTop: "10px",
-            padding: "6px 14px",
-            background: getScoreBg(score),
-            borderRadius: "20px",
-            display: "inline-block",
-            fontSize: "13px",
-            color: getScoreColor(score),
-            fontWeight: "700",
+            marginTop: "10px", padding: "6px 14px",
+            background: getScoreBg(score), borderRadius: "20px",
+            display: "inline-block", fontSize: "13px",
+            color: getScoreColor(score), fontWeight: "700",
           }}>
             {score >= 80 ? "🎉 훌륭해요!" : score >= 50 ? "💪 조금 더 연습해봐요!" : "🔥 다시 도전해보세요!"}
           </div>
         </div>
 
-        {/* 곡 정보 */}
         <div style={{
           padding: "16px 20px", background: "white",
-          borderRadius: "14px", border: "1px solid #e9d5ff",
-          minWidth: "160px",
+          borderRadius: "14px", border: "1px solid #e9d5ff", minWidth: "160px",
         }}>
           <p style={{ fontSize: "11px", color: "#a855f7", margin: "0 0 4px", letterSpacing: "1px" }}>DANCE</p>
           <p style={{ fontSize: "16px", fontWeight: "800", color: "#6b21a8", margin: "0 0 8px" }}>
@@ -113,12 +160,7 @@ function ReportView({ dtwResult, onBack }) {
       </div>
 
       {/* 수치 지표 카드 그리드 */}
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(3, 1fr)",
-        gap: "12px",
-        marginBottom: "24px",
-      }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px", marginBottom: "24px" }}>
         {[
           { label: "전문가 프레임", value: dtwResult.expert_frame_count, unit: "frames", color: "#a855f7", bg: "#f3e8ff" },
           { label: "사용자 프레임", value: dtwResult.user_frame_count, unit: "frames", color: "#ec4899", bg: "#fce7f3" },
@@ -127,10 +169,7 @@ function ReportView({ dtwResult, onBack }) {
           { label: "정규화 거리", value: dtwResult.normalized_distance?.toFixed(4), unit: "", color: "#ec4899", bg: "#fce7f3" },
           { label: "워핑 경로 길이", value: dtwResult.warping_path_length, unit: "steps", color: "#8b5cf6", bg: "#ede9fe" },
         ].map((item) => (
-          <div key={item.label} style={{
-            padding: "16px", background: item.bg,
-            borderRadius: "14px", textAlign: "center",
-          }}>
+          <div key={item.label} style={{ padding: "16px", background: item.bg, borderRadius: "14px", textAlign: "center" }}>
             <p style={{ fontSize: "11px", color: item.color, margin: "0 0 6px", fontWeight: "600", letterSpacing: "0.5px" }}>
               {item.label}
             </p>
@@ -161,7 +200,6 @@ function ReportView({ dtwResult, onBack }) {
               alignItems: "center", marginBottom: "14px", flexWrap: "wrap", gap: "8px",
             }}>
               <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-                {/* 순위 배지 */}
                 <span style={{
                   width: "32px", height: "32px",
                   background: getSeverityColor(seg.severity),
@@ -171,8 +209,6 @@ function ReportView({ dtwResult, onBack }) {
                 }}>
                   {seg.rank}
                 </span>
-
-                {/* 시간 구간 */}
                 <div>
                   <span style={{ color: "#6b21a8", fontWeight: "700", fontSize: "15px" }}>
                     {seg.start_sec.toFixed(1)}초 ~ {seg.end_sec.toFixed(1)}초
@@ -181,8 +217,6 @@ function ReportView({ dtwResult, onBack }) {
                     ({seg.duration_sec.toFixed(1)}초)
                   </span>
                 </div>
-
-                {/* 심각도 */}
                 <span style={{
                   padding: "3px 10px",
                   background: getSeverityColor(seg.severity) + "20",
@@ -193,17 +227,42 @@ function ReportView({ dtwResult, onBack }) {
                 </span>
               </div>
 
-              {/* 평균 오차 */}
-              <div style={{
-                padding: "6px 14px", background: "#f9fafb",
-                borderRadius: "8px", textAlign: "right",
-              }}>
-                <p style={{ fontSize: "10px", color: "#9ca3af", margin: "0 0 2px" }}>평균 오차</p>
-                <p style={{ fontSize: "15px", fontWeight: "800", color: "#3b1f6e", margin: 0 }}>
-                  {seg.mean_distance.toFixed(3)}
-                </p>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <div style={{ padding: "6px 14px", background: "#f9fafb", borderRadius: "8px", textAlign: "right" }}>
+                  <p style={{ fontSize: "10px", color: "#9ca3af", margin: "0 0 2px" }}>평균 오차</p>
+                  <p style={{ fontSize: "15px", fontWeight: "800", color: "#3b1f6e", margin: 0 }}>
+                    {seg.mean_distance.toFixed(3)}
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => setPlayingRank(playingRank === seg.rank ? null : seg.rank)}
+                  style={{
+                    padding: "8px 16px",
+                    background: playingRank === seg.rank
+                      ? "linear-gradient(135deg, #ef4444, #f97316)"
+                      : "linear-gradient(135deg, #a855f7, #ec4899)",
+                    color: "white", border: "none",
+                    borderRadius: "10px", cursor: "pointer",
+                    fontSize: "13px", fontWeight: "700",
+                    boxShadow: "0 2px 8px rgba(168,85,247,0.3)",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {playingRank === seg.rank ? "⏹ 닫기" : "▶ 구간 보기"}
+                </button>
               </div>
             </div>
+
+            {/* 영상 재생 영역 */}
+            {playingRank === seg.rank && (
+              <SegmentVideo
+                seg={seg}
+                videoUrl={videoUrl}
+                onEnd={() => setPlayingRank(null)}
+                getSeverityColor={getSeverityColor}
+              />
+            )}
 
             {/* 취약 관절 */}
             <div>
@@ -241,7 +300,6 @@ function ReportView({ dtwResult, onBack }) {
         ))}
       </div>
 
-      {/* 하단 여백 */}
       <div style={{ height: "40px" }} />
     </div>
   );

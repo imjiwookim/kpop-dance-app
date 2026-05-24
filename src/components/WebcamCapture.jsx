@@ -86,7 +86,9 @@ function WebcamCapture({ song, onFinish }) {
 
     allFramesRef.current.push(frame);
     frameIdxRef.current++;
-    setFrameCount(allFramesRef.current.length);
+    if (frameIdxRef.current % 30 === 0) {
+      setFrameCount(allFramesRef.current.length);
+    }
 
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       windowBufferRef.current.push(frame);
