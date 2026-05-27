@@ -3,7 +3,7 @@ import { useMediaPipe } from "../hooks/useMediaPipe";
 
 const BASE_URL = "http://localhost:8000";
 const WS_URL = "ws://localhost:8000";
-const WINDOW_SIZE = 15;
+const WINDOW_SIZE = 5; // ── [수정] 15 → 5로 줄여서 첫 점수 빠르게 표시
 
 function WebcamCapture({ song, onFinish }) {
   const videoRef = useRef(null);
@@ -15,12 +15,9 @@ function WebcamCapture({ song, onFinish }) {
   const allFramesRef = useRef([]);
   const isAnalyzingRef = useRef(false);
 
-  // ── [추가] phase에 "countdown" 추가 ─────────────────────────
   // "idle" | "countdown" | "practicing" | "analyzing"
   const [phase, setPhase] = useState("idle");
-  const [countdown, setCountdown] = useState(null); // 3, 2, 1, null
-  // ─────────────────────────────────────────────────────────────
-
+  const [countdown, setCountdown] = useState(null);
   const [error, setError] = useState(null);
   const [score, setScore] = useState(null);
   const [parts, setParts] = useState(null);
@@ -45,33 +42,7 @@ function WebcamCapture({ song, onFinish }) {
     readyDance();
   }, [song]);
 
-  // ── 2. WebSocket 연결 (practicing 진입 시) ──────────────────
-  useEffect(() => {
-    if (phase !== "practicing" || !song?.dance_id) return;
-
-    const ws = new WebSocket(`${WS_URL}/ws/similarity/${song.dance_id}`);
-    wsRef.current = ws;
-
-    ws.onopen = () => console.log("WebSocket 연결됨");
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      if (data.error) { console.error("서버 에러:", data.error); return; }
-      if (data.similarity !== null) {
-        setScore(Math.round(data.similarity * 100));
-        setParts(data.parts);
-        partsRef.current = data.parts;
-      }
-    };
-    ws.onerror = (err) => console.error("WebSocket 오류:", err);
-    ws.onclose = () => console.log("WebSocket 종료");
-
-    return () => {
-      ws.close();
-      partsRef.current = null;
-    };
-  }, [phase, song]);
-
-  // ── 3. 관절 수집 + WebSocket 전송 (practicing만) ────────────
+  // ── 2. 관절 수집 + WebSocket 전송 (practicing만) ────────────
   useEffect(() => {
     if (phase !== "practicing" || !landmarks) return;
 
@@ -102,7 +73,7 @@ function WebcamCapture({ song, onFinish }) {
     }
   }, [landmarks, phase]);
 
-  // ── 4. 웹캠 (항상 ON) ───────────────────────────────────────
+  // ── 3. 웹캠 (항상 ON) ───────────────────────────────────────
   useEffect(() => {
     const startWebcam = async () => {
       try {
@@ -118,7 +89,7 @@ function WebcamCapture({ song, onFinish }) {
     return () => videoRef.current?.srcObject?.getTracks().forEach((t) => t.stop());
   }, []);
 
-  // ── 5. DTW 분석 ─────────────────────────────────────────────
+  // ── 4. DTW 분석 ─────────────────────────────────────────────
   const runDtwAnalysis = useCallback(async () => {
     if (isAnalyzingRef.current) return;
     isAnalyzingRef.current = true;
@@ -162,20 +133,9 @@ function WebcamCapture({ song, onFinish }) {
     }
   }, [song, onFinish]);
 
-  // ── 6. 시작 버튼 → 카운트다운 후 연습 시작 ──────────────────
-  const handleStart = () => {
-    allFramesRef.current = [];
-    frameIdxRef.current = 0;
-    windowBufferRef.current = [];
-    setFrameCount(0);
-    setScore(null);
-    setParts(null);
-    partsRef.current = null;
-    setError(null);
-    setPhase("countdown");
+  // ── 5. 카운트다운 함수 ───────────────────────────────────────
+  const startCountdown = useCallback(() => {
     setCountdown(3);
-
-    // 3 → 2 → 1 → 시작
     let count = 3;
     const timer = setInterval(() => {
       count -= 1;
@@ -192,7 +152,48 @@ function WebcamCapture({ song, onFinish }) {
         setCountdown(count);
       }
     }, 1000);
+  }, []);
+
+  // ── 6. 시작 버튼 → WebSocket 연결 완료 후 카운트다운 ─────────
+  const handleStart = () => {
+    allFramesRef.current = [];
+    frameIdxRef.current = 0;
+    windowBufferRef.current = [];
+    setFrameCount(0);
+    setScore(null);
+    setParts(null);
+    partsRef.current = null;
+    setError(null);
+    setPhase("countdown");
+
+    // WebSocket 먼저 연결 → 연결 완료(onopen) 후 카운트다운 시작
+    const ws = new WebSocket(`${WS_URL}/ws/similarity/${song.dance_id}`);
+    wsRef.current = ws;
+
+    ws.onopen = () => {
+      console.log("WebSocket 연결됨 → 카운트다운 시작");
+      startCountdown();
+    };
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.error) { console.error("서버 에러:", data.error); return; }
+      if (data.similarity !== null) {
+        setScore(Math.round(data.similarity * 100));
+        setParts(data.parts);
+        partsRef.current = data.parts;
+      }
+    };
+    ws.onerror = (err) => console.error("WebSocket 오류:", err);
+    ws.onclose = () => console.log("WebSocket 종료");
   };
+
+  // cleanup
+  useEffect(() => {
+    return () => {
+      wsRef.current?.close();
+      partsRef.current = null;
+    };
+  }, []);
   // ─────────────────────────────────────────────────────────────
 
   // ── 7. 영상 종료 → 자동 DTW ─────────────────────────────────
@@ -346,7 +347,7 @@ function WebcamCapture({ song, onFinish }) {
               </span>
             </div>
 
-            {/* ── [추가] 카운트다운 오버레이 ──────────────────────── */}
+            {/* 카운트다운 오버레이 */}
             {phase === "countdown" && countdown !== null && (
               <div style={{
                 position: "absolute", inset: 0,
@@ -358,13 +359,22 @@ function WebcamCapture({ song, onFinish }) {
                   fontWeight: "900",
                   color: "white",
                   textShadow: "0 0 30px rgba(168,85,247,0.8)",
-                  animation: "pulse 0.9s ease-in-out",
                 }}>
                   {countdown}
                 </span>
               </div>
             )}
-            {/* ─────────────────────────────────────────────────── */}
+
+            {/* 연결 대기 오버레이 */}
+            {phase === "countdown" && countdown === null && (
+              <div style={{
+                position: "absolute", inset: 0,
+                background: "rgba(0,0,0,0.5)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                <p style={{ color: "white", fontSize: "14px", fontWeight: "600" }}>⏳ 연결 중...</p>
+              </div>
+            )}
 
             {phase === "idle" && (
               <div style={{
@@ -400,7 +410,7 @@ function WebcamCapture({ song, onFinish }) {
               transition: "all 0.2s",
             }}
           >
-            {phase === "countdown" ? `${countdown}초 후 시작...` : "▶ 시작"}
+            {phase === "countdown" ? `${countdown ?? ""}초 후 시작...` : "▶ 시작"}
           </button>
         )}
 
