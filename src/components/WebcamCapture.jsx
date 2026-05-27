@@ -57,6 +57,7 @@ function WebcamCapture({ song, onFinish }) {
 
     allFramesRef.current.push(frame);
     frameIdxRef.current++;
+    console.log("프레임 수집:", frameIdxRef.current);
     if (frameIdxRef.current % 30 === 0) {
       setFrameCount(allFramesRef.current.length);
     }
