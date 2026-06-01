@@ -51,7 +51,7 @@ function WebcamCapture({ song, onFinish }) {
       frame_idx: frameIdxRef.current,
       timestamp: currentTime,
       landmarks: landmarks.map((lm) => ({
-        x: lm.x, y: lm.y, z: lm.z, visibility: lm.visibility,
+        x: 1 - lm.x, y: lm.y, z: lm.z, visibility: lm.visibility,
       })),
     };
 
